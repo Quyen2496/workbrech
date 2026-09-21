@@ -1,0 +1,14 @@
+BƯỚC 1: XÁC ĐỊNH CÁC THỰC THỂ CÓ TRONG MÔ HÌNH ERDDựa vào các hình chữ nhật trên sơ đồ ERD, hệ thống có 5 thực thể chính:PHIEUXUAT (Thuộc tính: SoPX [Khóa chính], NgayXuat)   VATTU (Thuộc tính: MaVTU [Khóa chính], TenVTU)   PHIEUNHAP (Thuộc tính: SoPN [Khóa chính], NgayNhap)   DONDH (Thuộc tính: SoDH [Khóa chính], NgayDH)   NHACC (Thuộc tính: MaNCC [Khóa chính], TenNCC, DiaChi, SĐT)   BƯỚC 2: XÁC ĐỊNH CÁC MỐI QUAN HỆ VÀ SINH BẢNG / TRƯỜNG TƯƠNG ỨNGMối quan hệ N - N (Nhiều - Nhiều):Quan hệ (1) Chi tiết phiếu xuất giữa PHIEUXUAT và VATTU (N - N):
+-> Sinh ra bảng trung gian: CHITIETPHIEUXUAT
+-> Thuộc tính: SoPX, MaVTU, DGXuat, SLXuat
+-> Khóa chính: (SoPX, MaVTU)   Quan hệ (2) Chi tiết phiếu nhập giữa VATTU và PHIEUNHAP (N - N):
+-> Sinh ra bảng trung gian: CHITIETPHIEUNHAP
+-> Thuộc tính: SoPN, MaVTU, DGNhap, SLNhap
+-> Khóa chính: (SoPN, MaVTU)   Quan hệ (3) Chi tiết đơn đặt hàng giữa VATTU và DONDH (N - N):
+-> Sinh ra bảng trung gian: CHITIETDONDH
+-> Thuộc tính: SoDH, MaVTU
+-> Khóa chính: (SoDH, MaVTU)   Mối quan hệ 1 - N (Một - Nhiều):Quan hệ (4) Cung cấp giữa NHACC (bên 1) và DONDH (bên N):
+-> Thêm khóa ngoại MaNCC từ NHACC vào bảng DONDH.   BƯỚC 3: XÁC ĐỊNH THUỘC TÍNH ĐA TRỊ VÀ TẠO BẢNG MỚIThực thể NHACC có thuộc tính SĐT (Số điện thoại) là thuộc tính đa trị (vẽ bằng hình elip viền đôi).   Xử lý: Tách thuộc tính đa trị SĐT thành một bảng riêng đặt tên là NHACC_SDT.
+-> Thuộc tính: MaNCC, SDT
+-> Khóa chính kết hợp: (MaNCC, SDT)
+-> Khóa ngoại: MaNCC tham chiếu tới NHACC(MaNCC).   BƯỚC 4: DANH SÁCH CÁC BẢNG SAU KHĨ CHUYỂN ĐỔI HOÀN CHỈNH(Ghi chú: [PK] = Primary Key / Khóa chính, [FK] = Foreign Key / Khóa ngoại)PHIEUXUATSoPX [PK]NgayXuatVATTUMaVTU [PK]TenVTUPHIEUNHAPSoPN [PK]NgayNhapNHACCMaNCC [PK]TenNCCDiaChiNHACC_SDTMaNCC [PK, FK -> NHACC(MaNCC)]SDT [PK]DONDHSoDH [PK]NgayDHMaNCC [FK -> NHACC(MaNCC)]CHITIETPHIEUXUATSoPX [PK, FK -> PHIEUXUAT(SoPX)]MaVTU [PK, FK -> VATTU(MaVTU)]DGXuatSLXuatCHITIETPHIEUNHAPSoPN [PK, FK -> PHIEUNHAP(SoPN)]MaVTU [PK, FK -> VATTU(MaVTU)]DGNhapSLNhapCHITIETDONDHSoDH [PK, FK -> DONDH(SoDH)]MaVTU [PK, FK -> VATTU(MaVTU)]
