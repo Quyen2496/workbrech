@@ -1,0 +1,32 @@
+================================================================================
+NHẬT KÝ TƯƠNG TÁC AI (PROMPT LOG)
+Dự án: Thiết kế CSDL HealthSync
+Học viên: System Analyst & Database Administrator
+================================================================================
+
+1. PROMPT 1: THẢO LUẬN ANTI-PATTERN & TRẠNG THÁI
+- Prompt đã gửi:
+  "Trong thiết kế cơ sở dữ liệu quan hệ, tại sao việc dùng một cột is_active (kiểu TINYINT/BOOLEAN) để theo dõi vòng đời của một Đơn hàng/Lịch hẹn lại là một thiết kế tồi (Anti-pattern)? Tôi nên thay thế bằng cấu trúc nào?"
+- Kiến thức thu nhận từ AI:
+  + Cột BOOLEAN chỉ phù hợp cho cờ bật/tắt 2 trạng thái. Việc lưu quy trình 5 bước vào BOOLEAN dẫn đến mất dấu lịch sử trạng thái.
+  + Giải pháp tốt nhất trong MySQL là dùng kiểu ENUM hoặc VARCHAR kèm CHECK constraint để giới hạn tập giá trị chuẩn.
+
+2. PROMPT 2: LỰA CHỌN KIỂU DỮ LIỆU TÀI CHÍNH
+- Prompt đã gửi:
+  "Khi thiết kế cột deposit_amount và penalty_fee trong MySQL phục vụ tính toán tài chính, tôi nên dùng kiểu dữ liệu FLOAT, DOUBLE hay DECIMAL? Tại sao?"
+- Kiến thức thu nhận từ AI:
+  + FLOAT/DOUBLE dùng biểu diễn số thực dấu phẩy động (floating-point), gây ra sai số làm tròn (Floating-point precision error).
+  + Trong ứng dụng liên quan đến tiền tệ, BẮT BUỘC dùng DECIMAL(precision, scale) để đảm bảo độ chính xác tuyệt đối.
+
+3. PROMPT 3: CÚ PHÁP ALTER TABLE & ENUM
+- Prompt đã gửi:
+  "Hãy cho tôi xem cú pháp chuẩn trong MySQL để thêm một cột status với kiểu dữ liệu ENUM chứa các giá trị ('PENDING', 'CONFIRMED', 'CHECKED_IN', 'COMPLETED', 'CANCELLED') vào một bảng có sẵn."
+- Kiến thức thu nhận từ AI:
+  + Sử dụng cú pháp: `ALTER TABLE Appointments ADD COLUMN status ENUM(...) DEFAULT 'PENDING';`
+
+4. PROMPT 4: TRUY VẤN JOIN ĐỐI SOÁT VÀ RÀNG BUỘC
+- Prompt đã gửi:
+  "Viết cho tôi một câu lệnh SQL SELECT kết hợp JOIN giữa bảng Appointments và Prescriptions để lấy ra danh sách tất cả các bệnh nhân đã hoàn tất khám bệnh và chi tiết đơn thuốc của họ. Đồng thời gợi ý cách chặn việc tạo đơn thuốc khi lịch hẹn chưa khám xong bằng Trigger."
+- Kiến thức thu nhận từ AI:
+  + Nắm vững kỹ thuật INNER JOIN giữa 4 bảng (Patients, Doctors, Appointments, Prescriptions).
+  + Biết cách ứng dụng BEFORE INSERT Trigger trong MySQL để chặn hành vi vi phạm logic nghiệp vụ ngay từ tầng CSDL.
