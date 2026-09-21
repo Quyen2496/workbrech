@@ -1,0 +1,29 @@
+================================================================================
+BÁO CÁO PHÂN TÍCH KHOẢNG TRỐNG DỮ LIỆU & SỰ TOÀN VẸN NGHIỆP VỤ (GAP ANALYSIS REPORT)
+Dự án: Hệ thống Quản lý Thuê xe Tự lái AutoRide
+Người thực hiện: Data Architect
+================================================================================
+
+1. TỔNG QUAN
+Đối chiếu giữa Lưu đồ hoạt động (UML Activity Diagram) và mô hình dữ liệu cũ (Legacy Database), hệ thống cũ thiếu sót nghiêm trọng trong việc ghi nhận nhánh rẽ nghiệp vụ lúc trả xe, khiến doanh nghiệp thất thoát tài chính do không thể khấu trừ tiền phạt hư hỏng/trễ hạn vào tiền cọc.
+
+2. BẢNG LIỆT KÊ CÁC KHOẢNG TRỐNG DỮ LIỆU (DATA GAPS)
+
+------------------------------------------------------------------------------------------------------------------
+STT | Điểm chạm Activity Diagram           | Cấu trúc Legacy SQL cũ         | Tác động & Hậu quả Nghiệp vụ
+------------------------------------------------------------------------------------------------------------------
+1   | Quản lý vòng đời hợp đồng            | status VARCHAR(50)             | Dễ nhầm lẫn, dữ liệu sai lệch (ví dụ
+    | (BOOKED -> ACTIVE -> COMPLETED,      | không có ràng buộc tập giá trị)| 'completed' vs 'COMPLETED'), không kiểm
+    | CANCELLED)                           |                                | soát được tiến trình thuê xe.
+------------------------------------------------------------------------------------------------------------------
+2   | Nhánh trả xe: Tính phí phạt trễ      | Không có cột lưu trữ tiền cọc, | Kế toán không thể tính toán số tiền hoàn
+    | giờ và phí hư hỏng hỏng hóc xe.     | phí trễ giờ, phí hư hại xe.    | lại cho khách. Nhân viên phải tự thu
+    | Tiền hoàn = Cọc - Phạt trễ - Hư hỏng |                                | tiền ngoài hoặc làm mất tiền cọc.
+------------------------------------------------------------------------------------------------------------------
+3   | Nhánh kiểm tra tình trạng xe         | Vắng mặt hoàn toàn bảng        | Không ghi nhận được biên bản nghiệm thu,
+    | (Inspection) khi bàn giao xe.        | Inspections.                   | vị trí hư hỏng, người kiểm tra để làm
+    |                                      |                                | bằng chứng pháp lý/khiếu nại.
+------------------------------------------------------------------------------------------------------------------
+
+3. GIẢI TRÌNH TÍNH BẮT BUỘC CỦA CỘT DAMAGE_FEE VÀ BẢNG INSPECTIONS (DƯỚI 200 TỪ)
+Cột `damage_fee` trong bảng `Rentals` và bảng `Inspections` là yếu tố sống còn bảo đảm tính toàn vẹn hệ thống. Trong Activity Diagram, quy trình trả xe phân nhánh rõ ràng: nếu phát hiện sự cố, hệ thống phải xác định mức độ thiệt hại và chi phí đền bù. Bảng `Inspections` đóng vai trò lưu vết pháp lý chi tiết (mô tả vết trầy, hình ảnh, người kiểm tra), trong khi cột `damage_fee` quy đổi thiệt hại thành con số tài chính trực tiếp. Thiếu cột `damage_fee`, công thức tính Tiền hoàn lại (`Refund = security_deposit - late_fee - damage_fee`) bị gãy. Kế toán không có căn cứ đối soát dòng tiền, buộc công ty tự gánh chịu chi phí sửa chữa xe, dẫn đến thua lỗ tài chính và làm gián đoạn luồng vận hành tự động của phần mềm.
