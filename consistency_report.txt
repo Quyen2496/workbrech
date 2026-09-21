@@ -1,0 +1,33 @@
+================================================================================
+BÁO CÁO CHẨN ĐOÁN LỖ HỔNG VÀ SỰ BẤT NHẤT DỮ LIỆU (GAP ANALYSIS REPORT)
+Dự án: Hệ thống Quản lý Phòng khám HealthSync
+Người thực hiện: System Analyst & Database Administrator
+================================================================================
+
+1. TỔNG QUAN
+Qua đối chiếu giữa Lưu đồ hoạt động (UML Activity Diagram) từ Business Analyst (BA) và cơ sở dữ liệu hiện tại (Legacy SQL Script), chúng tôi phát hiện 4 lỗ hổng nghiêm trọng khiến hệ thống không thể vận hành trên thực tế.
+
+2. CÁC ĐIỂM VÊNH NGHIÊM TRỌNG (DATA GAPS)
+
+- Lỗ hổng 1: Sử dụng kiểu dữ liệu BOOLEAN (is_active) cho quy trình đa trạng thái.
+  + Thực trạng cũ: Cột `is_active BOOLEAN` chỉ biểu diễn được 2 trạng thái (0/1 - Đúng/Sai).
+  + Yêu cầu nghiệp vụ: Vòng đời lịch hẹn trải qua 5 trạng thái: PENDING (Chờ duyệt) -> CONFIRMED (Đã cọc) -> CHECKED_IN (Đã đến) -> COMPLETED (Khám xong) hoặc CANCELLED (Đã hủy).
+  + Hậu quả: Không thể theo dõi tiến trình khám bệnh, gây nghẽn luồng xử lý trên phần mềm.
+
+- Lỗ hổng 2: Khuyết hoàn toàn thông tin Quản lý Tài chính (Tiền cọc & Phí phạt).
+  + Thực trạng cũ: Bảng Appointments không có các cột `deposit_amount`, `penalty_fee`.
+  + Yêu cầu nghiệp vụ: Bệnh nhân cọc tiền khi đăng ký và bị trừ phí phạt khi hủy lịch ở trạng thái CONFIRMED.
+  + Hậu quả: Không thể hạch toán dòng tiền, kế toán không thể đối soát doanh thu thực tế và phí phạt thu về.
+
+- Lỗ hổng 3: Khuyết thông tin Ghi nhận lý do hủy lịch (`cancel_reason`).
+  + Thực trạng cũ: CSDL không lưu trữ thông tin khi lịch hẹn bị hủy.
+  + Yêu cầu nghiệp vụ: Ghi nhận nguyên nhân bệnh nhân hủy hẹn để hỗ trợ chăm sóc khách hàng và kiểm toán.
+  + Hậu quả: Thất thoát dữ liệu nghiệp vụ quan trọng phục vụ phân tích báo cáo.
+
+- Lỗ hổng 4: Vắng mặt hoàn toàn thực thể Đơn thuốc (`Prescriptions`).
+  + Thực trạng cũ: CSDL hoàn toàn không có bảng lưu vết kê đơn.
+  + Yêu cầu nghiệp vụ: Sau khi hoàn thành khám (COMPLETED), Bác sĩ kê đơn thuốc tương ứng với lịch hẹn.
+  + Hậu quả: Bác sĩ không thể nhập đơn thuốc, ứng dụng liên tục báo lỗi crash khi chuyển sang bước COMPLETED.
+
+3. KẾT LUẬN & HƯỚNG KHẮC PHỤC
+Cần xóa bỏ cột `is_active`, tái cấu trúc bảng `Appointments` bổ sung các cột `status` (kiểu ENUM), `deposit_amount` (DECIMAL), `penalty_fee` (DECIMAL), `cancel_reason` (VARCHAR); đồng thời tạo mới bảng `Prescriptions` liên kết khóa ngoại với `Appointments`.
