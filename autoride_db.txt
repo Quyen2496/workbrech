@@ -1,0 +1,135 @@
+-- ============================================================================
+-- DỰ ÁN AUTORIDE - SCRIPT TÁI CẤU TRÚC VÀ VẬN HÀNH CSDL (DML & DDL)
+-- File: autoride_db.txt (hoặc autoride_db.sql)
+-- Mô tả: Chuẩn hóa Schema, bổ sung kiểm soát và chạy kịch bản thử nghiệm
+-- ============================================================================
+
+-- BƯỚC 1: TẠO VÀ CHỌN CƠ SỞ DỮ LIỆU
+CREATE DATABASE IF NOT EXISTS autoride_db;
+USE autoride_db;
+
+-- Dọn dẹp bảng cũ nếu đã tồn tại để tránh xung đột
+DROP TABLE IF EXISTS Inspections;
+DROP TABLE IF EXISTS Rentals;
+DROP TABLE IF EXISTS Cars;
+
+-- BƯỚC 2: TẠO BẢNG CARS (DANH MỤC XE)
+CREATE TABLE Cars (
+    car_id INT AUTO_INCREMENT PRIMARY KEY,
+    model_name VARCHAR(100) NOT NULL,
+    license_plate VARCHAR(20) UNIQUE NOT NULL
+);
+
+-- BƯỚC 3: TẠO BẢNG RENTALS VỚI CÁC CỘT TÀI CHÍNH VÀ ENUM CHUẨN HÓA
+CREATE TABLE Rentals (
+    rental_id INT AUTO_INCREMENT PRIMARY KEY,
+    car_id INT NOT NULL,
+    customer_name VARCHAR(100) NOT NULL,
+    rent_date DATETIME NOT NULL,
+    return_date DATETIME DEFAULT NULL,
+    
+    -- Khóa chặt trạng thái bằng ENUM
+    status ENUM('BOOKED', 'ACTIVE', 'COMPLETED', 'CANCELLED') DEFAULT 'BOOKED',
+    
+    -- Sử dụng DECIMAL(10, 2) cho dữ liệu tài chính tránh sai số floating-point
+    security_deposit DECIMAL(10, 2) NOT NULL DEFAULT 0.00,
+    late_fee DECIMAL(10, 2) NOT NULL DEFAULT 0.00,
+    damage_fee DECIMAL(10, 2) NOT NULL DEFAULT 0.00,
+    
+    FOREIGN KEY (car_id) REFERENCES Cars(car_id) ON DELETE RESTRICT
+);
+
+-- BƯỚC 4: TẠO BẢNG INSPECTIONS (BIÊN BẢN KIỂM TRA XE)
+CREATE TABLE Inspections (
+    inspection_id INT AUTO_INCREMENT PRIMARY KEY,
+    rental_id INT NOT NULL,
+    inspection_date DATETIME NOT NULL,
+    damage_description TEXT,
+    inspector_name VARCHAR(100) NOT NULL,
+    
+    FOREIGN KEY (rental_id) REFERENCES Rentals(rental_id) ON DELETE RESTRICT
+);
+
+-- BƯỚC 5: TẠO TRIGGER RÀNG BUỘC NGHIỆP VỤ (CHẶN KIỂM TRA XE KHI HỢP ĐỒNG CHƯA ACTIVE)
+DELIMITER //
+CREATE TRIGGER trg_CheckRentalStatusBeforeInspection
+BEFORE INSERT ON Inspections
+FOR EACH ROW
+BEGIN
+    DECLARE current_status VARCHAR(20);
+    
+    SELECT status INTO current_status
+    FROM Rentals
+    WHERE rental_id = NEW.rental_id;
+    
+    IF current_status = 'BOOKED' THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Lỗi nghiệp vụ: Không thể lập Biên bản kiểm tra xe (Inspection) cho hợp đồng đang ở trạng thái BOOKED!';
+    END IF;
+END;
+//
+DELIMITER ;
+
+
+-- ============================================================================
+-- BƯỚC 6: MÔ PHỎNG KỊCH BẢN THỰC TẾ (INSERT & UPDATE DỮ LIỆU)
+-- ============================================================================
+
+-- 1. Thêm danh mục xe mẫu
+INSERT INTO Cars (car_id, model_name, license_plate) VALUES 
+(1, 'Toyota Camry 2023', '30H-123.45'),
+(2, 'VinFast VF8', '30K-999.88');
+
+-- 2. Khách hàng "Nguyen Van A" đặt thuê xe, đóng cọc 10.000.000 VNĐ
+INSERT INTO Rentals (rental_id, car_id, customer_name, rent_date, status, security_deposit) 
+VALUES (1001, 1, 'Nguyen Van A', '2026-09-15 08:00:00', 'BOOKED', 10000000.00);
+
+-- 3. Khách nhận xe -> Chuyển trạng thái sang ACTIVE
+UPDATE Rentals 
+SET status = 'ACTIVE' 
+WHERE rental_id = 1001;
+
+-- 4. Khách trả xe -> Nhân viên kiểm tra phát hiện vỡ đèn pha trái
+INSERT INTO Inspections (rental_id, inspection_date, damage_description, inspector_name) 
+VALUES (1001, '2026-09-18 10:00:00', 'Vo den pha trai, tray xuc nhe yem truoc', 'Tran Van B (Kiem Dinh Vien)');
+
+-- 5. Cập nhật trả xe: Trạng thái COMPLETED, late_fee = 0đ, damage_fee = 2.000.000 VNĐ, ngày trả thực tế
+UPDATE Rentals 
+SET status = 'COMPLETED',
+    return_date = '2026-09-18 10:00:00',
+    late_fee = 0.00,
+    damage_fee = 2000000.00
+WHERE rental_id = 1001;
+
+
+-- ============================================================================
+-- BƯỚC 7: TRUY VẤN TÍNH TOÁN TIỀN HOÀN LẠI VÀ ĐỐI SOÁT KIỂM TOÁN
+-- ============================================================================
+
+-- Query 1: Truy vấn tính toán chính xác tiền cọc cần hoàn trả lại cho khách hàng
+SELECT 
+    r.rental_id AS Ma_Hop_Dong,
+    r.customer_name AS Ten_Khach_Hang,
+    c.model_name AS Ten_Xe,
+    c.license_plate AS Bien_So,
+    r.security_deposit AS Tien_Coc_Ban_Dau,
+    r.late_fee AS Phi_Phat_Tre,
+    r.damage_fee AS Phi_Sua_Chua_Hu_Hong,
+    (r.security_deposit - r.late_fee - r.damage_fee) AS Tien_Hoan_Tra_Khach,
+    r.status AS Trang_Thai_Hop_Dong
+FROM Rentals r
+JOIN Cars c ON r.car_id = c.car_id
+WHERE r.rental_id = 1001;
+
+-- Query 2: Truy vấn xem chi tiết biên bản kiểm tra sự cố đi kèm
+SELECT 
+    i.inspection_id AS Ma_Bien_Ban,
+    r.rental_id AS Ma_Hop_Dong,
+    r.customer_name AS Ten_Khach,
+    i.inspection_date AS Thoi_Gian_Kiem_Tra,
+    i.damage_description AS Chi_Tiet_Hu_Hong,
+    i.inspector_name AS Nguoi_Kiem_Tra,
+    r.damage_fee AS So_Tien_Phat_Sua_Chua
+FROM Inspections i
+JOIN Rentals r ON i.rental_id = r.rental_id
+WHERE r.rental_id = 1001;
