@@ -1,0 +1,156 @@
+-- ============================================================================
+-- DỰ ÁN HEALTHSYNC - SCRIPT TÁI CẤU TRÚC VÀ VẬN HÀNH CSDL
+-- File: healthsync_db.txt (hoặc healthsync_db.sql)
+-- Mô tả: Cập nhật Schema chuẩn hóa và chép dữ liệu thử nghiệm theo kịch bản
+-- ============================================================================
+
+-- BƯỚC 1: KHỞI TẠO CƠ SỞ DỮ LIỆU
+CREATE DATABASE IF NOT EXISTS healthsync_db;
+USE healthsync_db;
+
+-- Xóa bảng cũ nếu tồn tại để dựng lại cấu trúc chuẩn
+DROP TABLE IF EXISTS Prescriptions;
+DROP TABLE IF EXISTS Appointments;
+DROP TABLE IF EXISTS Doctors;
+DROP TABLE IF EXISTS Patients;
+
+-- BƯỚC 2: THIẾT KẾ CÁC BẢNG NỀN TẢNG (PATIENTS & DOCTORS)
+CREATE TABLE Patients (
+    patient_id INT AUTO_INCREMENT PRIMARY KEY,
+    full_name VARCHAR(100) NOT NULL,
+    phone VARCHAR(15) NOT NULL
+);
+
+CREATE TABLE Doctors (
+    doctor_id INT AUTO_INCREMENT PRIMARY KEY,
+    full_name VARCHAR(100) NOT NULL,
+    specialty VARCHAR(50)
+);
+
+-- BƯỚC 3: THIẾT KẾ BẢNG APPOINTMENTS (ĐÃ TÁI CẤU TRÚC CHUẨN ĐÚNG ACTIVITY DIAGRAM)
+CREATE TABLE Appointments (
+    appointment_id INT AUTO_INCREMENT PRIMARY KEY,
+    patient_id INT NOT NULL,
+    doctor_id INT NOT NULL,
+    appointment_date DATETIME NOT NULL,
+    
+    -- Xóa is_active, thay bằng ENUM quản lý 5 trạng thái
+    status ENUM('PENDING', 'CONFIRMED', 'CHECKED_IN', 'COMPLETED', 'CANCELLED') DEFAULT 'PENDING',
+    
+    -- Sử dụng DECIMAL cho tính toán tài chính chính xác (không dùng FLOAT/DOUBLE)
+    deposit_amount DECIMAL(10, 2) DEFAULT 0.00,
+    penalty_fee DECIMAL(10, 2) DEFAULT 0.00,
+    cancel_reason VARCHAR(255) DEFAULT NULL,
+    
+    FOREIGN KEY (patient_id) REFERENCES Patients(patient_id),
+    FOREIGN KEY (doctor_id) REFERENCES Doctors(doctor_id)
+);
+
+-- BƯỚC 4: TẠO BẢNG PRESCRIPTIONS (LƯU ĐƠN THUỐC)
+CREATE TABLE Prescriptions (
+    prescription_id INT AUTO_INCREMENT PRIMARY KEY,
+    appointment_id INT UNIQUE NOT NULL, -- UNIQUE đảm bảo mối quan hệ 1-1 với Lịch hẹn
+    medication_details TEXT NOT NULL,
+    issued_date DATETIME NOT NULL,
+    FOREIGN KEY (appointment_id) REFERENCES Appointments(appointment_id)
+);
+
+-- BƯỚC 5: TẠO TRIGGER NGĂN CHẶN CHÈN ĐƠN THUỐC KHI LỊCH HẸN CHƯA COMPLETED (RÀNG BUỘC TOÀN VẸN)
+DELIMITER //
+CREATE TRIGGER trg_CheckAppointmentBeforePrescription
+BEFORE INSERT ON Prescriptions
+FOR EACH ROW
+BEGIN
+    DECLARE app_status VARCHAR(20);
+    
+    SELECT status INTO app_status
+    FROM Appointments
+    WHERE appointment_id = NEW.appointment_id;
+    
+    IF app_status != 'COMPLETED' THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Lỗi nghiệp vụ: Không thể kê đơn thuốc cho lịch hẹn chưa ở trạng thái COMPLETED!';
+    END IF;
+END;
+//
+DELIMITER ;
+
+
+-- ============================================================================
+-- BƯỚC 6: CHÉP DỮ LIỆU THỬ NGHIỆM THEO KỊCH BẢN THỰC TẾ
+-- ============================================================================
+
+-- Chèn dữ liệu mẫu Bệnh nhân & Bác sĩ
+INSERT INTO Patients (patient_id, full_name, phone) VALUES 
+(1, 'Nguyen Van A', '0901234567'),
+(2, 'Tran Thi B', '0987654321');
+
+INSERT INTO Doctors (doctor_id, full_name, specialty) VALUES 
+(1, 'BS. Le Van C', 'Noi Khoa'),
+(2, 'BS. Pham Thi D', 'Nhi Khoa');
+
+-- ----------------------------------------------------------------------------
+-- KỊCH BẢN 1: TẠO LỊCH HẸN VÀ THỰC HIỆN KHÁM THÀNH CÔNG (PENDING -> CHECKED_IN -> COMPLETED -> KÊ ĐƠN)
+-- ----------------------------------------------------------------------------
+-- 1. Tạo lịch hẹn PENDING, cọc 500.000đ
+INSERT INTO Appointments (appointment_id, patient_id, doctor_id, appointment_date, status, deposit_amount) 
+VALUES (101, 1, 1, '2026-10-01 09:00:00', 'PENDING', 500000.00);
+
+-- 2. Bệnh nhân đến phòng khám -> Chuyển CHECKED_IN
+UPDATE Appointments 
+SET status = 'CHECKED_IN' 
+WHERE appointment_id = 101;
+
+-- 3. Khám xong -> Chuyển COMPLETED
+UPDATE Appointments 
+SET status = 'COMPLETED' 
+WHERE appointment_id = 101;
+
+-- 4. Bác sĩ kê đơn thuốc cho lịch hẹn 101
+INSERT INTO Prescriptions (appointment_id, medication_details, issued_date) 
+VALUES (101, 'Paracetamol 500mg (10 viên), Vitamin C 1000mg (10 viên)', NOW());
+
+
+-- ----------------------------------------------------------------------------
+-- KỊCH BẢN 2: BỆNH NHÂN HỦY LỊCH VÀ PHẠT TIỀN CỌC (CONFIRMED -> CANCELLED)
+-- ----------------------------------------------------------------------------
+-- 1. Tạo lịch hẹn đã xác nhận cọc 300.000đ
+INSERT INTO Appointments (appointment_id, patient_id, doctor_id, appointment_date, status, deposit_amount) 
+VALUES (102, 2, 2, '2026-10-02 14:00:00', 'CONFIRMED', 300000.00);
+
+-- 2. Bệnh nhân báo hủy lịch -> Cập nhật CANCELLED, lý do hủy và tính phí phạt 150.000đ
+UPDATE Appointments 
+SET status = 'CANCELLED',
+    cancel_reason = 'Ban viec dot xuat',
+    penalty_fee = 150000.00
+WHERE appointment_id = 102;
+
+
+-- ============================================================================
+-- BƯỚC 7: CÁC CÂU LỆNH TRUY VẤN ĐỐI SOÁT KIỂM TRA (SELECT QUERIES)
+-- ============================================================================
+
+-- Query 1: Lấy danh sách bệnh nhân đã hoàn tất khám bệnh kèm chi tiết đơn thuốc
+SELECT 
+    p.full_name AS Ten_Benh_Nhan,
+    d.full_name AS Bacs_Si_Kham,
+    a.appointment_date AS Ngay_Kham,
+    a.status AS Trang_Thai,
+    pr.medication_details AS Chi_Tiet_Don_Thuoc
+FROM Appointments a
+JOIN Patients p ON a.patient_id = p.patient_id
+JOIN Doctors d ON a.doctor_id = d.doctor_id
+JOIN Prescriptions pr ON a.appointment_id = pr.appointment_id
+WHERE a.status = 'COMPLETED';
+
+-- Query 2: Báo cáo tài chính thu phạt tiền cọc từ các lịch hủy
+SELECT 
+    a.appointment_id AS Ma_Lich_Hen,
+    p.full_name AS Ten_Benh_Nhan,
+    a.deposit_amount AS Tien_Coc,
+    a.penalty_fee AS Phid_Phat,
+    (a.deposit_amount - a.penalty_fee) AS Tien_Tra_Lai_Khach,
+    a.cancel_reason AS Ly_Do_Huy
+FROM Appointments a
+JOIN Patients p ON a.patient_id = p.patient_id
+WHERE a.status = 'CANCELLED';
