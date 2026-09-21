@@ -1,0 +1,129 @@
+================================================================================
+          BÀI THỰC HÀNH: XÂY DỰNG MÔ HÌNH THỰC THỂ LIÊN KẾT (ERD)
+                     CƠ SỞ DỮ LIỆU QUẢN LÝ ĐƠN ĐẶT HÀNG
+================================================================================
+
+I. BƯỚC 1: LIỆT KÊ VÀ CHỌN LỌC THÔNG TIN
+--------------------------------------------------------------------------------
+1. Đơn đặt hàng gồm các thông tin:
+   - Số đơn hàng (Số ĐH)
+   - Tên đơn vị đặt hàng (Tên ĐV)
+   - Địa chỉ
+   - Điện thoại
+   - Ngày đặt
+   - Tên hàng
+   - Mô tả hàng
+   - Đơn vị tính (Đv tính)
+   - Số lượng
+   - Người đặt hàng (Họ tên NĐ)
+
+2. Phiếu giao hàng gồm các thông tin:
+   - Số phiếu giao hàng (Số PG)
+   - Tên đơn vị đặt hàng / Đơn vị khách hàng (Tên ĐV)
+   - Địa chỉ
+   - Nơi giao hàng (Tên nơi GH)
+   - Ngày giao
+   - Tên hàng
+   - Đơn vị tính (Đv tính)
+   - Số lượng
+   - Đơn giá
+   - Thành tiền
+   - Tên người nhận (Họ tên NN)
+   - Tên người giao (Họ tên NG)
+
+
+II. BƯỚC 2: XÁC ĐỊNH THỰC THỂ VÀ THUỘC TÍNH (BAN ĐẦU)
+--------------------------------------------------------------------------------
+1. Thực thể ĐƠN VỊ ĐH:
+   - Mã ĐV (Khóa chính)
+   - Tên ĐV
+   - Địa chỉ
+   - Điện thoại
+
+2. Thực thể ĐƠN VỊ KH:
+   - Mã ĐV (Khóa chính)
+   - Tên ĐV
+   - Địa chỉ
+
+3. Thực thể HÀNG:
+   - Mã hàng (Khóa chính)
+   - Tên hàng
+   - Đv tính
+   - Mô tả hàng
+
+4. Thực thể NGƯỜI ĐẶT:
+   - Mã số NĐ (Khóa chính)
+   - Họ tên NĐ
+
+5. Thực thể NƠI GIAO:
+   - Mã số ĐĐG (Khóa chính)
+   - Tên nơi giao
+
+6. Thực thể NGƯỜI NHẬN:
+   - Mã số NN (Khóa chính)
+   - Họ tên NN
+
+7. Thực thể NGƯỜI GIAO:
+   - Mã số NG (Khóa chính)
+   - Họ tên NG
+
+
+III. BƯỚC 3: XÁC ĐỊNH CÁC MỐI QUAN HỆ VÀ THUỘC TÍNH MỐI QUAN HỆ
+--------------------------------------------------------------------------------
+1. Phân tích động từ "ĐẶT":
+   - Ai đặt?               -> NGƯỜI ĐẶT
+   - Đặt cái gì?           -> HÀNG
+   - Sử dụng gì để đặt?    -> Số ĐH (Thuộc tính của quan hệ Đặt)
+   - Đặt khi nào?          -> Ngày đặt (Thuộc tính của quan hệ Đặt)
+   - Đặt bao nhiêu?        -> Số lượng (Thuộc tính của quan hệ Đặt)
+
+2. Phân tích động từ "GIAO":
+   - Ai giao?              -> NGƯỜI GIAO
+   - Giao cái gì?          -> HÀNG
+   - Giao ở đâu?           -> NƠI GIAO
+   - Giao cho ai?          -> NGƯỜI NHẬN
+   - Sử dụng gì để giao?   -> Số PG (Thuộc tính của quan hệ Giao)
+   - Giao khi nào?         -> Ngày giao (Thuộc tính của quan hệ Giao)
+   - Giao bao nhiêu?       -> Số lượng (Thuộc tính của quan hệ Giao)
+   - Giá trị giao bao nhiêu-> Đơn giá, Thành tiền (Thuộc tính của quan hệ Giao)
+
+3. Các mối quan hệ thuộc sở hữu:
+   - NGƯỜI ĐẶT thuộc ĐƠN VỊ ĐẶT HÀNG (Thuộc 1)
+   - NGƯỜI NHẬN thuộc ĐƠN VỊ KHÁCH HÀNG (Thuộc 2)
+
+
+IV. BƯỚC 4 & BƯỚC 5: CHUẨN HÓA VÀ MÔ HÌNH ERD HOÀN CHỈNH
+--------------------------------------------------------------------------------
+* Chuẩn hóa:
+  Do "Đơn vị đặt hàng" và "Đơn vị khách hàng" đều đại diện cho các đơn vị 
+  giao dịch bên ngoài với cửa hàng, ta gộp lại thành 1 thực thể duy nhất:
+  --> Thực thể "ĐV KHÁCH" (Mã ĐV, Tên ĐV, Địa chỉ, Điện thoại).
+
+--------------------------------------------------------------------------------
+MÔ TẢ CẤU TRÚC SƠ ĐỒ ERD CHUẨN HÓA:
+--------------------------------------------------------------------------------
+
+1. CÁC THỰC THỂ & THUỘC TÍNH (Hình chữ nhật):
+   - ĐV KHÁCH: [Mã ĐV (PK), Tên ĐV, Địa chỉ, Điện thoại]
+   - NGƯỜI ĐẶT: [Mã số NĐ (PK), Họ tên NĐ]
+   - NGƯỜI NHẬN: [Mã số NN (PK), Họ tên NN]
+   - NGƯỜI GIAO: [Mã số NG (PK), Họ tên NG]
+   - NƠI GIAO: [Mã số ĐĐG (PK), Tên nơi giao]
+   - HÀNG: [Mã hàng (PK), Tên hàng, Đv tính, Mô tả hàng]
+
+2. CÁC MỐI QUAN HỆ & THUỘC TÍNH RIÊNG (Hình thoi & Hình elip):
+
+   A. Quan hệ Thuộc 1:
+      - Nối giữa: ĐV KHÁCH và NGƯỜI ĐẶT
+
+   B. Quan hệ Thuộc 2:
+      - Nối giữa: ĐV KHÁCH và NGƯỜI NHẬN
+
+   C. Quan hệ ĐẶT:
+      - Liên kết giữa 2 thực thể: NGƯỜI ĐẶT và HÀNG
+      - Thuộc tính mối quan hệ: Số ĐH, Ngày đặt, Số lượng
+
+   D. Quan hệ GIAO:
+      - Liên kết giữa 4 thực thể: HÀNG, NGƯỜI NHẬN, NGƯỜI GIAO, NƠI GIAO
+      - Thuộc tính mối quan hệ: Số PG, Ngày giao, Số lượng, Đơn giá
+================================================================================
